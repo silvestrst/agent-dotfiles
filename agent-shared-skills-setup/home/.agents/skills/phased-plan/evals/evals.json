@@ -1,0 +1,133 @@
+{
+  "skill_name": "phased-plan",
+  "evals": [
+    {
+      "id": 0,
+      "name": "create-phased-plan",
+      "prompt": "I've got a small flask notes app in <run>/repo. I want to add JWT-based auth to it eventually \u2014 user signup/login, token issuing, protecting the existing endpoints. I don't want to implement anything today. Set up a phased plan for this work so I can chip away at it over the next couple of weeks. My plans directory is <run>/plans (set PHASED_PLAN_HOME=<run>/plans). I'm heading out, so approve reasonable phases and steps on my behalf \u2014 keep steps small and self-contained.",
+      "expected_output": "Plan directory created under plans home with plan.md (real content, phases + steps), progress.md, and state.json containing 3+ pending steps pointing at the repo. No source changes in the repo.",
+      "files": [
+        "fixture: flask notes app repo, empty plans dir"
+      ],
+      "assertions": [
+        "A plan directory containing plan.md, progress.md, and state.json exists under the plans home",
+        "state.json is valid JSON with at least 3 steps, all with status pending, and repo pointing at the fixture repo",
+        "plan.md contains real plan content (phases and steps), not the scaffold placeholder",
+        "The repo is untouched: no new commits and no modified/untracked source files",
+        "User-facing continuation instructions are phrased as /phased-plan commands; the user is never told to run plan.py themselves"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "resume-with-drift",
+      "prompt": "I was working through my auth rework plan a few days ago (plans dir: PHASED_PLAN_HOME=<run>/plans, repo at <run>/repo). Resume it: where did we leave off, and has anything changed in the repo since? Reassess the remaining steps against the current code and update the plan if needed \u2014 but don't implement anything yet. Write what you found and recommend to <run>/outputs/findings.md.",
+      "expected_output": "Report identifies the checkpoint note (halfway through JWT issuing), the commits made outside the plan's tracking (wip jwt helper, endpoint rename) and the dirty file, and gives a step-by-step reassessment. state.json remains valid, step 1 stays done, no implementation happens.",
+      "files": [
+        "fixture: repo + plan with step 1 done, checkpoint mid-step-2, then 2 outside commits and a dirty file"
+      ],
+      "assertions": [
+        "findings.md identifies where work left off: step 2 (JWT issuing) in progress, referencing the checkpoint note",
+        "findings.md surfaces the drift: mentions the endpoint rename to /api/notes and the untracked README",
+        "findings.md recognizes step 2 is partially done (jwt_helper.py exists but unimplemented)",
+        "state.json remains valid, with step 1 still done and its recorded commit unchanged",
+        "No implementation happened: no new commits in the repo, jwt_helper.py still raises NotImplementedError"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "implement-single-step",
+      "prompt": "Pick up my calculator plan (PHASED_PLAN_HOME=<run>/plans, repo at <run>/repo). Implement just step 1 \u2014 nothing else \u2014 and mark it done when finished. Leave the other steps alone.",
+      "expected_output": "Step 1 scope (add/subtract functions with tests) implemented in the repo; state.json shows step 1 done and steps 2-3 still pending; no multiply/divide/CLI code appears.",
+      "files": [
+        "fixture: calc repo, plan with 3 pending steps"
+      ],
+      "assertions": [
+        "add and subtract functions exist in calc.py, tests exist in test_calc.py, and the tests pass",
+        "state.json shows step 1 done and steps 2 and 3 still pending",
+        "Step 2/3 scope was NOT implemented: no multiply/divide functions and no CLI argument handling",
+        "progress.md records step 1 being started and completed",
+        "No git commits were made on the user's behalf (repo HEAD unchanged from the fixture)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "progress-next",
+      "prompt": "Check my phased plan progress (plans dir: PHASED_PLAN_HOME=<run>/plans, repo at <run>/repo) \u2014 where am I with the calculator work? Then go ahead and execute the next step of the plan.",
+      "expected_output": "Progress summary (step 1 done, 2-3 pending), then step 2 (multiply/divide with zero handling + tests) implemented and marked done; step 3 untouched; no commits made for the user.",
+      "files": [
+        "fixture: calc repo with step 1 done and committed, steps 2-3 pending"
+      ],
+      "assertions": [
+        "The progress summary correctly states step 1 is done and steps 2 and 3 are pending before any implementation",
+        "multiply and divide functions exist with divide raising ValueError on zero, tests exist and pass",
+        "state.json shows steps 1 and 2 done and step 3 still pending",
+        "Step 3 scope (CLI argument handling) was NOT implemented",
+        "No git commits were made on the user's behalf (repo HEAD unchanged from the fixture)"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "review-gate-before-done",
+      "prompt": "Pick up my calculator plan (PHASED_PLAN_HOME=<run>/plans, repo at <run>/repo). Implement step 1 and mark it done.",
+      "expected_output": "Step 1 implemented, a review packet presented to the user (what changed, size, how to verify) before completion, and the step marked done only after that. state.json records a size for step 1.",
+      "files": [
+        "fixture: calculator repo + plan with 3 pending steps carrying verify lines"
+      ],
+      "assertions": [
+        "The assistant's reply shows the user what changed before claiming the step is done: it names the files touched and states the size of the change",
+        "The assistant surfaces how to verify the step (the step's verify line or an equivalent concrete check), rather than only asserting it works",
+        "state.json shows step 1 done with a non-null size object containing changed_lines",
+        "progress.md contains both a 'ready for review' entry and a 'done' entry for step 1, in that order",
+        "complete-step was not forced: the assistant did not pass --force to bypass the review gate"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "over-budget-step-is-surfaced",
+      "prompt": "Implement step 1 of my plan (PHASED_PLAN_HOME=<run>/plans, repo at <run>/repo). It's the bulk import feature.",
+      "expected_output": "The step unavoidably exceeds its 150-line budget. The assistant reports the overrun in plain terms, presents the change in digestible pieces rather than one wall of diff, and offers to resplit the remaining steps.",
+      "files": [
+        "fixture: repo + plan whose step 1 cannot be done in under ~150 lines"
+      ],
+      "assertions": [
+        "The assistant explicitly tells the user the step came in over its size budget, with the actual size",
+        "The assistant offers to resplit or re-slice the remaining steps, or to split this step's work",
+        "The change is presented in parts (per-file or per-concern), not as a single undifferentiated dump",
+        "state.json records step 1's size with changed_lines greater than its budget",
+        "The assistant does not silently mark the step done as if the overrun had not happened"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "planning-produces-verifiable-slices",
+      "prompt": "I want to add CSV export to the reports page in <run>/repo. Plan it in phases so I can review as we go \u2014 I don't want a big pile of code landing at once. Approve reasonable phases on my behalf; I'm heading out. Plans dir: PHASED_PLAN_HOME=<run>/plans.",
+      "expected_output": "A plan whose every step carries a concrete verify line and a size budget, sliced as thin end-to-end behaviours rather than layers of groundwork.",
+      "files": [
+        "fixture: small reports app repo, empty plans dir"
+      ],
+      "assertions": [
+        "Every step in state.json has a non-empty verify field",
+        "Every step in state.json has a numeric budget",
+        "The verify fields describe something the operator can run or observe, not internal implementation facts like 'the module exists' or 'it compiles'",
+        "Steps are sliced as end-to-end behaviour: at least the first step delivers something observable from the reports page, rather than only adding scaffolding or abstractions",
+        "The repo is untouched: no new commits and no modified/untracked source files"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "replan-preserves-step-identity",
+      "prompt": "Pick up my plan (PHASED_PLAN_HOME=<run>/plans, repo at <run>/repo). Step 1 is already done. Before continuing, I realised we need a migration step in between step 2 and step 3 \u2014 add it to the plan, then show me the updated list. Don't implement anything yet.",
+      "expected_output": "A new step inserted at position 3, pushing the old step 3 to position 4. The completed step keeps its done status, commit, size and note. The assistant re-shows the renumbered list rather than relying on the old numbers.",
+      "files": [
+        "fixture: repo + plan with step 1 done (commit and size recorded) and steps 2-3 pending"
+      ],
+      "assertions": [
+        "state.json has 4 steps, with the new migration step at position 3 and the previously-third step at position 4",
+        "The previously-completed step still has status done with its original commit, size and note intact",
+        "Every pre-existing step kept the sid it had before the replan, and the new step got a fresh sid not previously used",
+        "The assistant re-shows the updated numbered list to the user after the change, rather than referring only to the old numbering",
+        "No implementation happened: no new commits and no modified source files in the repo"
+      ]
+    }
+  ]
+}
